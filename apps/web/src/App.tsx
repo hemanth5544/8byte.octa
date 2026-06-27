@@ -1,6 +1,7 @@
 import { RefreshCw, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LoadingModal } from "@/components/LoadingModal";
 import { usePortfolio } from "@/hooks/usePortfolio";
 import { PortfolioSummary } from "@/components/PortfolioSummary";
 import { PortfolioTable } from "@/components/PortfolioTable";
@@ -11,6 +12,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
+      <LoadingModal open={loading && !data} />
       <header className="border-b border-border bg-card/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="flex items-start gap-3">
@@ -53,12 +55,6 @@ export default function App() {
             {error}
           </div>
         )}
-
-        {loading && !data ? (
-          <div className="flex h-48 items-center justify-center text-muted-foreground">
-            Loading portfolio data…
-          </div>
-        ) : null}
 
         {data ? (
           <>

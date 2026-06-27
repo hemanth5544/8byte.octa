@@ -2,6 +2,13 @@
 
 Dynamic portfolio dashboard for the **Octa Byte AI** case study. Monorepo with a React frontend, Express API, Sequelize/SQLite persistence, and live market data from unofficial Yahoo Finance and Google Finance sources.
 
+
+## Preview
+
+![Portfolio Dashboard — sector allocation, gain/loss charts, and portfolio summary](./preview.png)
+
+Dashboard overview showing total investment, present value, sector allocation (pie chart), and sector gain/loss (bar chart) with 15-second live market data refresh.
+
 ## Stack
 
 | Layer | Technology |
