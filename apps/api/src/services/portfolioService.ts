@@ -1,5 +1,6 @@
 import type { HoldingWithMetrics, PortfolioResponse, SectorSummary } from "@portfolio/shared";
-import { Holding } from "../models/Holding.js";
+import type { HoldingAttributes } from "../models/Holding.js";
+import { findAllHoldings } from "../repositories/holdings.js";
 import { fetchGoogleFundamentalsBatch } from "./googleFinance.js";
 import { fetchYahooPricesBatch } from "./yahooFinance.js";
 
@@ -7,7 +8,7 @@ const DISCLAIMER =
   "Market data is sourced from unofficial Yahoo Finance and Google Finance endpoints. Prices and fundamentals may be delayed or inaccurate. Not financial advice.";
 
 function buildMetrics(
-  holding: Holding,
+  holding: HoldingAttributes,
   cmp: number | null,
   peRatio: number | null,
   latestEarnings: number | null,
@@ -38,7 +39,7 @@ function buildMetrics(
 }
 
 export async function getPortfolio(): Promise<PortfolioResponse> {
-  const holdings = await Holding.findAll({ order: [["sortOrder", "ASC"]] });
+  const holdings = await findAllHoldings();
   const totalInvestment = holdings.reduce(
     (sum, h) => sum + h.purchasePrice * h.quantity,
     0,

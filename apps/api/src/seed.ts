@@ -1,5 +1,5 @@
-import { dbPath, sequelize } from "./db/index.js";
-import { Holding } from "./models/Holding.js";
+import { getDatabase, saveDatabase } from "./db/client.js";
+import { resolveDbPath } from "./db/path.js";
 
 export const SEED_HOLDINGS = [
   { name: "HDFC Bank", sector: "Financial Sector", purchasePrice: 1490, quantity: 50, exchangeCode: "HDFCBANK", sortOrder: 1 },
@@ -30,16 +30,34 @@ export const SEED_HOLDINGS = [
   { name: "SBI Life", sector: "Others", purchasePrice: 1197, quantity: 49, exchangeCode: "540719", sortOrder: 26 },
 ] as const;
 
-export async function seedHoldings(): Promise<void> {
-  await Holding.destroy({ where: {} });
-  await Holding.bulkCreate([...SEED_HOLDINGS]);
+async function seedHoldings(): Promise<void> {
+  const db = await getDatabase();
+  db.run("DELETE FROM holdings");
+  const stmt = db.prepare(
+    "INSERT INTO holdings (name, sector, purchasePrice, quantity, exchangeCode, sortOrder) VALUES (?, ?, ?, ?, ?, ?)",
+  );
+  for (const row of SEED_HOLDINGS) {
+    stmt.run([row.name, row.sector, row.purchasePrice, row.quantity, row.exchangeCode, row.sortOrder]);
+  }
+  stmt.free();
 }
 
 async function main(): Promise<void> {
-  await sequelize.sync({ force: true });
+  const db = await getDatabase();
+  db.run(`
+    CREATE TABLE IF NOT EXISTS holdings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name VARCHAR(255) NOT NULL,
+      sector VARCHAR(255) NOT NULL,
+      purchasePrice FLOAT NOT NULL,
+      quantity INTEGER NOT NULL,
+      exchangeCode VARCHAR(255) NOT NULL,
+      sortOrder INTEGER NOT NULL DEFAULT 0
+    )
+  `);
   await seedHoldings();
-  console.log(`Seeded portfolio DB at ${dbPath}`);
-  await sequelize.close();
+  await saveDatabase(resolveDbPath());
+  console.log(`Seeded portfolio DB at ${resolveDbPath()}`);
 }
 
 const isDirectRun = process.argv[1]?.includes("seed");

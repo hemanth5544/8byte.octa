@@ -1,10 +1,10 @@
 import cors from "cors";
 import express, { type Express } from "express";
-import { sequelize } from "./db/index.js";
+import { getDatabase } from "./db/client.js";
 import { portfolioRouter } from "./routes/portfolio.js";
 
 export async function createApp(): Promise<Express> {
-  await sequelize.authenticate();
+  await getDatabase();
 
   const app = express();
   app.use(
