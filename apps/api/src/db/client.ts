@@ -9,6 +9,10 @@ const require = createRequire(import.meta.url);
 let dbPromise: Promise<Database> | null = null;
 
 function wasmLocateFile(file: string): string {
+  if (process.env.VERCEL) {
+    const bundled = path.join(path.dirname(resolveDbPath()), file);
+    if (fs.existsSync(bundled)) return bundled;
+  }
   const wasmDir = path.dirname(require.resolve("sql.js/dist/sql-wasm.wasm"));
   return path.join(wasmDir, file);
 }

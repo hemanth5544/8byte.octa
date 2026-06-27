@@ -3,6 +3,7 @@ dist
 .turbo
 *.db
 !apps/api/data/portfolio.db
+apps/api/data/sql-wasm.wasm
 .env
 .env.local
 .venv
