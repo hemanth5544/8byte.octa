@@ -30,8 +30,11 @@ export default function App() {
             </Badge>
             {data?.marketData ? (
               <Badge
-                variant={data.marketData.liveCmpCount > 0 ? "default" : "secondary"}
-                className="font-normal"
+                className={
+                  data.marketData.liveCmpCount > 0
+                    ? "border-primary/30 bg-primary/10 font-normal text-primary"
+                    : "border-border bg-muted font-normal text-muted-foreground"
+                }
               >
                 Live CMP: {data.marketData.liveCmpCount}/{data.marketData.totalHoldings}
               </Badge>
