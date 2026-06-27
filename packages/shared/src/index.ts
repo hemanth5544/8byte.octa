@@ -14,6 +14,7 @@ export interface LiveQuote {
   latestEarnings: number | null;
   lastUpdated: string;
   error?: string;
+  source?: "live" | "fallback" | "cached";
 }
 
 export interface HoldingWithMetrics extends Holding {
@@ -25,6 +26,7 @@ export interface HoldingWithMetrics extends Holding {
   peRatio: number | null;
   latestEarnings: number | null;
   quoteError?: string;
+  cmpSource?: "live" | "fallback" | "cached";
 }
 
 export interface SectorSummary {
@@ -47,4 +49,9 @@ export interface PortfolioResponse {
   };
   lastRefreshed: string;
   disclaimer: string;
+  marketData: {
+    liveCmpCount: number;
+    fallbackCmpCount: number;
+    totalHoldings: number;
+  };
 }

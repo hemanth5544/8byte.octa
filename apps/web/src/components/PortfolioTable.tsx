@@ -64,7 +64,14 @@ export function PortfolioTable({ holdings, sectorLabel }: PortfolioTableProps) {
       {
         accessorKey: "cmp",
         header: "CMP",
-        cell: ({ getValue }) => formatCurrency(getValue<number | null>()),
+        cell: ({ row }) => (
+          <span title={row.original.cmpSource === "fallback" ? "Seeded fallback price" : "Live Yahoo Finance"}>
+            {formatCurrency(row.original.cmp)}
+            {row.original.cmpSource === "fallback" ? (
+              <span className="ml-1 text-[10px] text-amber-600">*</span>
+            ) : null}
+          </span>
+        ),
       },
       {
         accessorKey: "presentValue",

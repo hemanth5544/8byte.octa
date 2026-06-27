@@ -14,6 +14,7 @@ function buildMetrics(
   latestEarnings: number | null,
   totalInvestment: number,
   quoteError?: string,
+  cmpSource?: "live" | "fallback" | "cached",
 ): HoldingWithMetrics {
   const investment = holding.purchasePrice * holding.quantity;
   const presentValue = cmp !== null ? cmp * holding.quantity : null;
@@ -35,6 +36,7 @@ function buildMetrics(
     peRatio,
     latestEarnings,
     quoteError,
+    cmpSource,
   };
 }
 
@@ -63,8 +65,12 @@ export async function getPortfolio(): Promise<PortfolioResponse> {
       google?.latestEarnings ?? null,
       totalInvestment,
       errors || undefined,
+      yahoo?.source,
     );
   });
+
+  const liveCmpCount = withMetrics.filter((h) => h.cmpSource === "live").length;
+  const fallbackCmpCount = withMetrics.filter((h) => h.cmpSource === "fallback").length;
 
   const sectorMap = new Map<string, HoldingWithMetrics[]>();
   for (const h of withMetrics) {
@@ -100,5 +106,10 @@ export async function getPortfolio(): Promise<PortfolioResponse> {
     },
     lastRefreshed: new Date().toISOString(),
     disclaimer: DISCLAIMER,
+    marketData: {
+      liveCmpCount,
+      fallbackCmpCount,
+      totalHoldings: withMetrics.length,
+    },
   };
 }

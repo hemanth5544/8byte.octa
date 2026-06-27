@@ -5,6 +5,7 @@ export const portfolioRouter = Router();
 
 portfolioRouter.get("/", async (_req, res) => {
   try {
+    res.setHeader("Cache-Control", "no-store, max-age=0");
     const portfolio = await getPortfolio();
     res.json(portfolio);
   } catch (err) {

@@ -39,17 +39,13 @@ export function sanitizeCmp(
   cmp: number | null,
   purchasePrice?: number,
 ): number | null {
-  const fallback = FALLBACK_CMP[exchangeCode];
+  if (cmp === null) return FALLBACK_CMP[exchangeCode] ?? null;
 
-  if (cmp === null) return fallback ?? null;
+  if (purchasePrice !== undefined && !isReasonableCmp(cmp, purchasePrice)) {
+    return FALLBACK_CMP[exchangeCode] ?? null;
+  }
 
-  const purchaseOk =
-    purchasePrice === undefined || isReasonableCmp(cmp, purchasePrice);
-  const fallbackOk =
-    fallback === undefined || Math.abs(cmp - fallback) / fallback <= 0.45;
-
-  if (purchaseOk && fallbackOk) return cmp;
-  return fallback ?? (purchaseOk ? cmp : null);
+  return cmp;
 }
 
 /** Seeded fundamentals from Excel (used when Google Finance scrape fails). */

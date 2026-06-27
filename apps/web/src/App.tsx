@@ -24,10 +24,18 @@ export default function App() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Badge className="border-border font-normal">
               Auto-refresh: 15s
             </Badge>
+            {data?.marketData ? (
+              <Badge
+                variant={data.marketData.liveCmpCount > 0 ? "default" : "secondary"}
+                className="font-normal"
+              >
+                Live CMP: {data.marketData.liveCmpCount}/{data.marketData.totalHoldings}
+              </Badge>
+            ) : null}
             <Button variant="outline" size="sm" onClick={() => void refresh()} disabled={loading}>
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               Refresh
@@ -59,6 +67,9 @@ export default function App() {
                 {lastUpdated && (
                   <p className="text-xs text-muted-foreground">
                     Last updated: {lastUpdated.toLocaleTimeString()}
+                    {data.marketData.fallbackCmpCount > 0
+                      ? ` · ${data.marketData.fallbackCmpCount} holdings using seeded fallback CMP`
+                      : ""}
                   </p>
                 )}
               </div>

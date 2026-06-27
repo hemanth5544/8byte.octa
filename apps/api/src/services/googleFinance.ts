@@ -4,9 +4,14 @@ import type { LiveQuote } from "@portfolio/shared";
 import { FALLBACK_FUNDAMENTALS } from "../data/fallbackQuotes.js";
 import { toGoogleSymbol } from "../utils/symbols.js";
 
-interface CacheEntry {
+interface GoogleFundamentals {
   peRatio: number | null;
   latestEarnings: number | null;
+  error?: string;
+  source?: "live" | "fallback" | "cached";
+}
+
+interface CacheEntry extends GoogleFundamentals {
   expiresAt: number;
   staleUntil: number;
 }
@@ -27,29 +32,36 @@ function parseNumber(value: string | undefined): number | null {
   return Number.isFinite(num) ? num : null;
 }
 
-function getCached(key: string, allowStale = true): { peRatio: number | null; latestEarnings: number | null } | null {
+function getFreshCache(key: string): GoogleFundamentals | null {
   const entry = cache.get(key);
-  if (!entry) return null;
-  const now = Date.now();
-  if (now <= entry.expiresAt) {
-    return { peRatio: entry.peRatio, latestEarnings: entry.latestEarnings };
-  }
-  if (allowStale && now <= entry.staleUntil) {
-    return { peRatio: entry.peRatio, latestEarnings: entry.latestEarnings };
-  }
-  cache.delete(key);
-  return null;
+  if (!entry || Date.now() > entry.expiresAt) return null;
+  return {
+    peRatio: entry.peRatio,
+    latestEarnings: entry.latestEarnings,
+    error: entry.error,
+    source: "cached",
+  };
 }
 
-function setCache(
-  key: string,
-  peRatio: number | null,
-  latestEarnings: number | null,
-): void {
+function getStaleCache(key: string): GoogleFundamentals | null {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.staleUntil) {
+    cache.delete(key);
+    return null;
+  }
+  return {
+    peRatio: entry.peRatio,
+    latestEarnings: entry.latestEarnings,
+    error: entry.error,
+    source: "cached",
+  };
+}
+
+function setCache(key: string, data: GoogleFundamentals): void {
   const now = Date.now();
   cache.set(key, {
-    peRatio,
-    latestEarnings,
+    ...data,
     expiresAt: now + CACHE_TTL_MS,
     staleUntil: now + STALE_TTL_MS,
   });
@@ -57,17 +69,26 @@ function setCache(
 
 function withFallback(
   exchangeCode: string,
-  data: Pick<LiveQuote, "peRatio" | "latestEarnings" | "error">,
-): Pick<LiveQuote, "peRatio" | "latestEarnings" | "error"> {
+  data: GoogleFundamentals,
+): GoogleFundamentals {
   const fallback = FALLBACK_FUNDAMENTALS[exchangeCode];
   if (!fallback) return data;
+
+  const hasLive = data.peRatio !== null || data.latestEarnings !== null;
+  if (hasLive) {
+    return {
+      peRatio: data.peRatio ?? fallback.peRatio,
+      latestEarnings: data.latestEarnings ?? fallback.latestEarnings,
+      error: data.error,
+      source: "live",
+    };
+  }
+
   return {
-    peRatio: data.peRatio ?? fallback.peRatio,
-    latestEarnings: data.latestEarnings ?? fallback.latestEarnings,
-    error:
-      data.peRatio === null && data.latestEarnings === null && fallback
-        ? `${data.error ?? "Google Finance unavailable"}; using seeded fallback`
-        : data.error,
+    peRatio: fallback.peRatio,
+    latestEarnings: fallback.latestEarnings,
+    source: "fallback",
+    error: `${data.error ?? "Google Finance unavailable"}; using seeded fallback`,
   };
 }
 
@@ -131,12 +152,10 @@ function extractFromHtml(html: string): { peRatio: number | null; latestEarnings
   return { peRatio, latestEarnings };
 }
 
-export async function fetchGoogleFundamentals(
-  exchangeCode: string,
-): Promise<Pick<LiveQuote, "peRatio" | "latestEarnings" | "error">> {
+export async function fetchGoogleFundamentals(exchangeCode: string): Promise<GoogleFundamentals> {
   const cacheKey = `google:${exchangeCode}`;
-  const cached = getCached(cacheKey);
-  if (cached) return cached;
+  const fresh = getFreshCache(cacheKey);
+  if (fresh) return fresh;
 
   const symbol = toGoogleSymbol(exchangeCode);
   const url = `https://www.google.com/finance/quote/${encodeURIComponent(symbol)}`;
@@ -152,11 +171,26 @@ export async function fetchGoogleFundamentals(
     });
 
     const { peRatio, latestEarnings } = extractFromHtml(html);
-    setCache(cacheKey, peRatio, latestEarnings);
-    return withFallback(exchangeCode, { peRatio, latestEarnings });
+    const result = withFallback(exchangeCode, {
+      peRatio,
+      latestEarnings,
+      source: peRatio !== null || latestEarnings !== null ? "live" : "fallback",
+    });
+    setCache(cacheKey, result);
+    return result;
   } catch (err) {
+    const stale = getStaleCache(cacheKey);
+    if (stale) {
+      return { ...stale, error: stale.error ?? "Using cached fundamentals after fetch failure" };
+    }
+
     const message = err instanceof Error ? err.message : "Google Finance fetch failed";
-    return withFallback(exchangeCode, { peRatio: null, latestEarnings: null, error: message });
+    return withFallback(exchangeCode, {
+      peRatio: null,
+      latestEarnings: null,
+      error: message,
+      source: "fallback",
+    });
   }
 }
 
@@ -164,14 +198,14 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function fetchGoogleFundamentalsBatch(
   exchangeCodes: string[],
-): Promise<Map<string, Pick<LiveQuote, "peRatio" | "latestEarnings" | "error">>> {
+): Promise<Map<string, GoogleFundamentals>> {
   const unique = [...new Set(exchangeCodes)];
-  const results = new Map<string, Pick<LiveQuote, "peRatio" | "latestEarnings" | "error">>();
+  const results = new Map<string, GoogleFundamentals>();
 
   for (const code of unique) {
-    const cached = getCached(`google:${code}`);
-    if (cached) {
-      results.set(code, cached);
+    const fresh = getFreshCache(`google:${code}`);
+    if (fresh) {
+      results.set(code, fresh);
       continue;
     }
     const data = await fetchGoogleFundamentals(code);
