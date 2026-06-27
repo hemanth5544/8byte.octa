@@ -1,9 +1,7 @@
 import { Sequelize } from "sequelize";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolveDbPath } from "./path.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dbPath = path.join(__dirname, "../../portfolio.db");
+export const dbPath = resolveDbPath();
 
 export const sequelize = new Sequelize({
   dialect: "sqlite",

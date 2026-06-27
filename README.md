@@ -28,7 +28,38 @@ packages/
 - Node.js 20+
 - pnpm 10+
 
-## Setup
+## Deploy on Vercel (frontend + serverless API)
+
+Both apps deploy from one Vercel project. Portfolio holdings live in a **committed SQLite file** at `apps/api/data/portfolio.db` (no build-time seeding on Vercel).
+
+### One-time / when holdings change
+
+```bash
+pnpm db:seed   # regenerates apps/api/data/portfolio.db
+git add apps/api/data/portfolio.db
+git commit -m "Update portfolio database"
+```
+
+### Vercel project settings
+
+| Setting | Value |
+|---------|--------|
+| **Framework** | Other |
+| **Build Command** | `pnpm vercel-build` (or use `vercel.json`) |
+| **Output Directory** | `apps/web/dist` |
+| **Install Command** | `pnpm install` |
+
+Push to GitHub — Vercel picks up `vercel.json` automatically. API routes hit `/api/portfolio` via the serverless function in `/api`.
+
+### How it works
+
+- `apps/web/dist` — static React app  
+- `api/index.ts` — Express API as a serverless function  
+- `apps/api/data/portfolio.db` — bundled with the function via `includeFiles` in `vercel.json`  
+
+On Vercel, the `.db` file is copied to `/tmp` on cold start (serverless filesystem is read-only elsewhere).
+
+## Setup (local)
 
 ```bash
 # Install dependencies (allows native sqlite3 build)

@@ -5,7 +5,11 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
-    "db:seed": "pnpm --filter @portfolio/api db:seed"
+    "db:seed": "pnpm --filter @portfolio/api db:seed",
+    "vercel-build": "pnpm --filter @portfolio/api build && pnpm --filter @portfolio/web build"
+  },
+  "dependencies": {
+    "@vercel/node": "^5.3.21"
   },
   "devDependencies": {
     "turbo": "^2.5.4",

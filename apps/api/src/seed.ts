@@ -1,3 +1,4 @@
+import { dbPath, sequelize } from "./db/index.js";
 import { Holding } from "./models/Holding.js";
 
 export const SEED_HOLDINGS = [
@@ -32,4 +33,19 @@ export const SEED_HOLDINGS = [
 export async function seedHoldings(): Promise<void> {
   await Holding.destroy({ where: {} });
   await Holding.bulkCreate([...SEED_HOLDINGS]);
+}
+
+async function main(): Promise<void> {
+  await sequelize.sync({ force: true });
+  await seedHoldings();
+  console.log(`Seeded portfolio DB at ${dbPath}`);
+  await sequelize.close();
+}
+
+const isDirectRun = process.argv[1]?.includes("seed");
+if (isDirectRun) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
 }
