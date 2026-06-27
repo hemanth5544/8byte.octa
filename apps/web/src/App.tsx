@@ -39,7 +39,7 @@ export default function App() {
       <main className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6">
         {error && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}. Make sure the API server is running on port 4000.
+            {error}
           </div>
         )}
 

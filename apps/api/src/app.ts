@@ -1,11 +1,8 @@
 import cors from "cors";
 import express, { type Express } from "express";
-import { getDatabase } from "./db/client.js";
 import { portfolioRouter } from "./routes/portfolio.js";
 
 export async function createApp(): Promise<Express> {
-  await getDatabase();
-
   const app = express();
   app.use(
     cors({

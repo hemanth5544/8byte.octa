@@ -2,26 +2,33 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import initSqlJs, { type Database } from "sql.js";
-import { resolveDbPath } from "./path.js";
+import { resolveDataDir, resolveDbPath } from "./path.js";
 
 const require = createRequire(import.meta.url);
 
 let dbPromise: Promise<Database> | null = null;
 
 function wasmLocateFile(file: string): string {
-  if (process.env.VERCEL) {
-    const bundled = path.join(path.dirname(resolveDbPath()), file);
-    if (fs.existsSync(bundled)) return bundled;
+  const bundled = path.join(resolveDataDir(), file);
+  if (fs.existsSync(bundled)) return bundled;
+
+  try {
+    const wasmDir = path.dirname(require.resolve("sql.js/dist/sql-wasm.wasm"));
+    return path.join(wasmDir, file);
+  } catch {
+    throw new Error(`Cannot locate sql.js wasm file: ${file}`);
   }
-  const wasmDir = path.dirname(require.resolve("sql.js/dist/sql-wasm.wasm"));
-  return path.join(wasmDir, file);
 }
 
 export async function getDatabase(): Promise<Database> {
   if (!dbPromise) {
     dbPromise = (async () => {
-      const SQL = await initSqlJs({ locateFile: wasmLocateFile });
       const dbPath = resolveDbPath();
+      if (!fs.existsSync(dbPath)) {
+        throw new Error(`Portfolio database not found at ${dbPath}`);
+      }
+
+      const SQL = await initSqlJs({ locateFile: wasmLocateFile });
       const buffer = fs.readFileSync(dbPath);
       return new SQL.Database(buffer);
     })();

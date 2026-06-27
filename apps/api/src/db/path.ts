@@ -3,31 +3,28 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const TMP_DB = "/tmp/portfolio.db";
 
-function defaultDbPath(): string {
-  const fromRepoRoot = path.join(process.cwd(), "apps/api/data/portfolio.db");
-  if (process.cwd().endsWith("/apps/api") || process.cwd().endsWith("\\apps\\api")) {
-    return path.join(process.cwd(), "data/portfolio.db");
-  }
-  return fromRepoRoot;
+function dataDirCandidates(): string[] {
+  return [
+    path.join(process.cwd(), "apps/api/data"),
+    path.join(process.cwd(), "data"),
+    path.join(__dirname, "../../data"),
+  ];
 }
 
-/** Committed SQLite file — single source of truth for local + Vercel. */
-export function resolveDbPath(): string {
-  const bundled = defaultDbPath();
-  fs.mkdirSync(path.dirname(bundled), { recursive: true });
-
-  if (process.env.VERCEL && fs.existsSync(bundled)) {
-    if (!fs.existsSync(TMP_DB)) {
-      fs.copyFileSync(bundled, TMP_DB);
+/** Directory containing portfolio.db and sql-wasm.wasm (bundled on Vercel). */
+export function resolveDataDir(): string {
+  for (const dir of dataDirCandidates()) {
+    if (fs.existsSync(path.join(dir, "portfolio.db"))) {
+      return dir;
     }
-    return TMP_DB;
   }
 
-  const localFallback = path.join(__dirname, "../../data/portfolio.db");
-  if (fs.existsSync(bundled)) return bundled;
-  if (fs.existsSync(localFallback)) return localFallback;
+  const fallback = path.join(process.cwd(), "apps/api/data");
+  fs.mkdirSync(fallback, { recursive: true });
+  return fallback;
+}
 
-  return bundled;
+export function resolveDbPath(): string {
+  return path.join(resolveDataDir(), "portfolio.db");
 }
