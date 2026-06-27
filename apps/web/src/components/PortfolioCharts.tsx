@@ -1,108 +1,43 @@
 import { useMemo } from "react";
 import type { PortfolioResponse } from "@portfolio/shared";
+import { Bar } from "@/components/charts/bar";
+import { BarChart } from "@/components/charts/bar-chart";
+import { PieCenter } from "@/components/charts/pie-center";
+import { PieChart } from "@/components/charts/pie-chart";
+import type { PieData } from "@/components/charts/pie-context";
+import { PieSlice } from "@/components/charts/pie-slice";
+import { PieHoverTooltip } from "@/components/charts/PieHoverTooltip";
+import { ChartConfigProvider } from "@/components/charts/chart-config-context";
+import { ChartTooltip } from "@/components/charts/tooltip/chart-tooltip";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { gainLossColor, sectorColor } from "@/lib/chartColors";
 import { formatCurrency } from "@/lib/utils";
-
-const CHART_COLORS = [
-  "oklch(0.55 0.18 255)",
-  "oklch(0.62 0.16 175)",
-  "oklch(0.68 0.14 85)",
-  "oklch(0.58 0.2 25)",
-  "oklch(0.52 0.15 305)",
-  "oklch(0.5 0.12 220)",
-];
 
 interface PortfolioChartsProps {
   data: PortfolioResponse;
 }
 
-function DonutChart({
-  items,
-}: {
-  items: { label: string; value: number; color: string }[];
-}) {
-  const total = items.reduce((s, i) => s + i.value, 0);
-  if (total <= 0) return null;
-
-  let cumulative = 0;
-  const slices = items.map((item) => {
-    const start = (cumulative / total) * 360;
-    cumulative += item.value;
-    const end = (cumulative / total) * 360;
-    return { ...item, start, end };
-  });
-
-  const gradient = slices
-    .map((s) => `${s.color} ${s.start}deg ${s.end}deg`)
-    .join(", ");
-
-  return (
-    <div className="relative mx-auto aspect-square w-full max-w-[220px]">
-      <div
-        className="h-full w-full rounded-full"
-        style={{ background: `conic-gradient(${gradient})` }}
-      />
-      <div className="absolute inset-[22%] flex flex-col items-center justify-center rounded-full bg-card text-center">
-        <span className="text-lg font-bold">{formatCurrency(total)}</span>
-        <span className="text-xs text-muted-foreground">Allocation</span>
-      </div>
-    </div>
-  );
-}
-
-function BarChart({
-  items,
-}: {
-  items: { label: string; value: number; color: string }[];
-}) {
-  const max = Math.max(...items.map((i) => Math.abs(i.value)), 1);
-
-  return (
-    <div className="space-y-3">
-      {items.map((item) => {
-        const width = (Math.abs(item.value) / max) * 100;
-        const positive = item.value >= 0;
-        return (
-          <div key={item.label} className="space-y-1">
-            <div className="flex justify-between text-xs">
-              <span className="truncate pr-2">{item.label}</span>
-              <span className={positive ? "text-emerald-600" : "text-red-600"}>
-                {formatCurrency(item.value)}
-              </span>
-            </div>
-            <div className="h-2 rounded-full bg-muted">
-              <div
-                className="h-2 rounded-full transition-all duration-500"
-                style={{
-                  width: `${width}%`,
-                  backgroundColor: positive ? "oklch(0.55 0.15 145)" : "oklch(0.55 0.2 25)",
-                }}
-              />
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 export function PortfolioCharts({ data }: PortfolioChartsProps) {
-  const sectorAllocation = useMemo(
+  const pieData = useMemo<PieData[]>(
     () =>
-      data.sectors.map((s, i) => ({
-        label: s.sector,
-        value: s.totalInvestment,
-        color: CHART_COLORS[i % CHART_COLORS.length],
+      data.sectors.map((sector, index) => ({
+        label: sector.sector,
+        value: sector.totalInvestment,
+        color: sectorColor(index),
       })),
     [data.sectors],
   );
 
-  const sectorGainLoss = useMemo(
+  const barData = useMemo(
     () =>
-      data.sectors.map((s) => ({
-        label: s.sector,
-        value: s.gainLoss,
-        color: s.gainLoss >= 0 ? "oklch(0.55 0.15 145)" : "oklch(0.55 0.2 25)",
+      data.sectors.map((sector, index) => ({
+        sector: sector.sector,
+        // Bar chart scale is 0-based; use magnitude for bar length
+        gainLoss: Math.abs(sector.gainLoss),
+        gainLossSigned: sector.gainLoss,
+        barColor: sectorColor(index),
+        investment: sector.totalInvestment,
+        presentValue: sector.totalPresentValue,
       })),
     [data.sectors],
   );
@@ -112,15 +47,26 @@ export function PortfolioCharts({ data }: PortfolioChartsProps) {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Sector Allocation</CardTitle>
-          <CardDescription>Investment weight by sector (bklit-style donut)</CardDescription>
+          <CardDescription>Hover slices for investment breakdown</CardDescription>
         </CardHeader>
         <CardContent>
-          <DonutChart items={sectorAllocation} />
+          <div className="mx-auto w-full max-w-[280px]">
+            <PieChart className="mx-auto" data={pieData} innerRadius={58} padAngle={0.02}>
+              {pieData.map((_, index) => (
+                <PieSlice index={index} key={pieData[index]?.label ?? index} />
+              ))}
+              <PieCenter defaultLabel="Total Investment" prefix="₹" />
+              <PieHoverTooltip />
+            </PieChart>
+          </div>
           <div className="mt-4 grid gap-2">
-            {sectorAllocation.map((item) => (
+            {pieData.map((item) => (
               <div key={item.label} className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: item.color }} />
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ background: item.color }}
+                  />
                   <span>{item.label}</span>
                 </div>
                 <span className="font-medium">{formatCurrency(item.value)}</span>
@@ -133,10 +79,67 @@ export function PortfolioCharts({ data }: PortfolioChartsProps) {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Sector Gain / Loss</CardTitle>
-          <CardDescription>Performance by sector</CardDescription>
+          <CardDescription>Hover bars for sector performance details</CardDescription>
         </CardHeader>
         <CardContent>
-          <BarChart items={sectorGainLoss} />
+          <ChartConfigProvider>
+            <BarChart
+              aspectRatio="4 / 3"
+              barGap={0.35}
+              className="min-h-[280px]"
+              data={barData}
+              margin={{ top: 16, right: 16, bottom: 16, left: 16 }}
+              orientation="horizontal"
+              xDataKey="sector"
+            >
+              <Bar animate dataKey="gainLoss" />
+              <ChartTooltip
+                rows={(point) => {
+                  const signed = point.gainLossSigned as number;
+                  const barColor = point.barColor as string;
+                  return [
+                    {
+                      color: gainLossColor(signed),
+                      label: "Gain / Loss",
+                      value: formatCurrency(signed),
+                    },
+                    {
+                      color: barColor,
+                      label: "Investment",
+                      value: formatCurrency(point.investment as number),
+                    },
+                    {
+                      color: barColor,
+                      label: "Present Value",
+                      value: formatCurrency(point.presentValue as number),
+                    },
+                  ];
+                }}
+                showCrosshair={false}
+                showDatePill={false}
+                showDots={false}
+              />
+            </BarChart>
+          </ChartConfigProvider>
+          <div className="mt-4 grid gap-2">
+            {barData.map((item) => (
+              <div key={item.sector} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ background: item.barColor }}
+                  />
+                  <span>{item.sector}</span>
+                </div>
+                <span
+                  className="font-medium"
+                  style={{ color: gainLossColor(item.gainLossSigned) }}
+                >
+                  {formatCurrency(item.gainLossSigned)}
+                </span>
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
     </div>
